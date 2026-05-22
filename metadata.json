@@ -1,0 +1,6 @@
+{
+  "name": "Remix: Wisesa Bug Dashboard",
+  "description": "Master Governance \u0026 Accountability Terminal for SIT Data Quality Management. System version v1.0.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
