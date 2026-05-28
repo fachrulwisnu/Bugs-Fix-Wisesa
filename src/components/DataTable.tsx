@@ -420,7 +420,7 @@ export function DataTable({ bugs, dark, className, hideFilters, currentUser, mat
                           ? "bg-indigo-600 text-white shadow-xs" 
                           : "border border-gray-200 text-gray-400"
                       )}>
-                        {bug.includedInFsd === "Ya" ? "FSD INCLUDED" : "NO FSD"}
+                        {bug.includedInFsd === "Ya" ? "INCLUDE FSD" : "NOT INCLUDE FSD"}
                       </span>
                     </div>
                   </td>

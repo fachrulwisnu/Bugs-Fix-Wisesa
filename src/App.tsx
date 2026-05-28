@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { BugRecord, DevStats, SEVERITY_WEIGHTS, DevEvaluation, AppUser } from "./types";
 import { ExcelImport } from "./components/ExcelImport";
-import { DashboardCharts } from "./components/Charts";
+import { DashboardCharts, PersonnelSeverityMatrix } from "./components/Charts";
 import { DataTable, SummaryCard, MetaRow } from "./components/DataTable";
 import { MonthPickerPopover } from "./components/MonthPickerPopover";
 import { OrphanedDashboardModal } from "./components/OrphanedDashboardModal";
@@ -160,6 +160,7 @@ export default function App() {
   };
   const [severityFilter, setSeverityFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [globalFilter, setGlobalFilter] = useState('All'); // Opsi: 'All', 'Bug', 'CR'
   
   const [startPeriod, setStartPeriod] = useState<string | null>(null);
   const [endPeriod, setEndPeriod] = useState<string | null>(null);
@@ -621,7 +622,23 @@ export default function App() {
   const [tableTypeFilter, setTableTypeFilter] = useState<'ALL' | 'BUG' | 'CR'>('ALL');
 
   const validData = useMemo(() => filteredBugs.filter(b => b.periode !== 'ORPHANED'), [filteredBugs]);
-  const activeSplitData = useMemo(() => validData.filter(r => matrixViewType === 'CR' ? isCR(r) : isBug(r)), [validData, matrixViewType]);
+  
+  const filteredBugsData = useMemo(() => {
+    return filteredBugs.filter(bug => {
+      if (bug.periode === 'ORPHANED') return false;
+      if (globalFilter === 'All') return true;
+      const typeStr = String(bug.type || '').toLowerCase();
+      if (globalFilter === 'Bug') {
+        return typeStr.includes('bug');
+      }
+      if (globalFilter === 'CR') {
+        return typeStr.includes('cr') || typeStr.includes('change request') || typeStr.includes('addit');
+      }
+      return true;
+    });
+  }, [filteredBugs, globalFilter]);
+
+  const activeSplitData = useMemo(() => filteredBugsData, [filteredBugsData]);
   
   const cleanTotalBugs = useMemo(() => bugs.filter(b => b.periode !== 'ORPHANED'), [bugs]);
 
@@ -727,7 +744,7 @@ export default function App() {
 
   const exportToExcel = async (bugsToExport?: BugRecord[]) => {
     // Export high-fidelity comprehensive reports using exceljs
-    await exportComprehensiveExcel(bugsToExport || filteredBugs);
+    await exportComprehensiveExcel(bugsToExport || filteredBugsData, globalFilter);
   };
 
   const handleFullDashboardExport = async () => {
@@ -1179,6 +1196,32 @@ export default function App() {
             >
               {activeTab === "overview" && (
                 <div className="flex-1 flex flex-col gap-6 overflow-y-auto scrollbar-hide">
+                  {/* Global Dashboard Filter Container */}
+                  <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex-shrink-0">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-800 tracking-wider">Global Dashboard Filter</h3>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Filter all graphs, matrix reports, and sheets instantly</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <select
+                        value={globalFilter}
+                        onChange={(e) => setGlobalFilter(e.target.value)}
+                        className="bg-gray-50 border border-gray-200 text-gray-950 text-xs rounded-xl focus:ring-blue-500 focus:border-blue-500 p-2.5 outline-none font-bold cursor-pointer"
+                      >
+                        <option value="All">Lihat Semua (All)</option>
+                        <option value="Bug">Hanya Bug</option>
+                        <option value="CR">Hanya Change Request (CR)</option>
+                      </select>
+                      <button
+                        onClick={() => exportComprehensiveExcel(filteredBugsData, globalFilter)}
+                        className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-sm"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        Export Excel
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Header Stats */}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
                     <StatCard 
@@ -1251,7 +1294,12 @@ export default function App() {
                       <h2 className="text-sm font-bold text-[#2B3674] tracking-widest uppercase">List Bug</h2>
                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Hierarchical visualization grouped by Project Name</p>
                     </div>
-                    <ProjectTreeView bugs={activeSplitData} isCompact={false} />
+                    <ProjectTreeView 
+                      bugs={filteredBugsData} 
+                      isCompact={false} 
+                      filterType={globalFilter} 
+                      setFilterType={setGlobalFilter} 
+                    />
                   </div>
 
                   {/* Intermediate Sections */}
@@ -1297,11 +1345,9 @@ export default function App() {
                       </div>
                     </div>
 
-                    <DashboardCharts 
-                      matrixViewType={matrixViewType}
-                      devStats={matrixDevStats} 
-                      allBugs={activeSplitData}
-                      unfilteredBugs={cleanTotalBugs} 
+                    <PersonnelSeverityMatrix 
+                      data={filteredBugsData}
+                      filterType={globalFilter}
                       selectedSeverity={severityFilter}
                       onChartClick={handleChartClick}
                       onExportPDF={handleSectionExport}
@@ -1333,7 +1379,7 @@ export default function App() {
                         </div>
                         <div className="p-4 bg-white overflow-auto">
                           <DataTable 
-                            bugs={activeSplitData}
+                            bugs={filteredBugsData}
                             dark={false}
                             hideFilters={false}
                             matrixViewType={matrixViewType}
@@ -1362,7 +1408,7 @@ export default function App() {
               {activeTab === "data" && (
                 <div className="flex-1 flex flex-col min-h-0 bg-[#0B1120] rounded-2xl overflow-hidden border border-slate-800">
                   <DataTable 
-                    bugs={activeSplitData}
+                    bugs={filteredBugsData}
                     dark
                     matrixViewType={matrixViewType}
                     currentUser={currentUser}
@@ -1380,7 +1426,11 @@ export default function App() {
 
               {activeTab === "tree" && (
                 <div className="flex-1 flex flex-col min-h-0 bg-[#0B1120] rounded-2xl overflow-hidden border border-slate-800">
-                  <ProjectTreeView bugs={activeSplitData} />
+                  <ProjectTreeView 
+                    bugs={filteredBugsData} 
+                    filterType={globalFilter} 
+                    setFilterType={setGlobalFilter} 
+                  />
                 </div>
               )}
 
@@ -1774,8 +1824,8 @@ export default function App() {
                  </SelectField>
                  <InputField label="Periode" name="periode" required placeholder="e.g. Jan 2026" />
                  <SelectField label="Included in FSD" name="includedInFsd">
-                    <option value="Tidak">Tidak</option>
-                    <option value="Ya">Ya</option>
+                    <option value="Tidak">Not Include FSD</option>
+                    <option value="Ya">Include FSD</option>
                  </SelectField>
                  <InputField label="Status PIC" name="statusPic" placeholder="e.g. In Review" />
                  <InputField label="Start Date" name="startDate" type="date" />
@@ -1919,7 +1969,7 @@ export default function App() {
                     <div className="space-y-1.5 p-5 bg-slate-950/20 border border-slate-800/40 rounded-2xl">
                        <MetaRow 
                          label="FSD Included" 
-                         value={selectedBugForDetail.includedInFsd} 
+                         value={selectedBugForDetail.includedInFsd === "Ya" ? "Include FSD" : (selectedBugForDetail.includedInFsd === "Tidak" ? "Not Include FSD" : selectedBugForDetail.includedInFsd)} 
                          isEditing={isEditingBug}
                          type="select"
                          options={["Ya", "Tidak"]}
@@ -2314,10 +2364,10 @@ function FSDGovernanceTracker({ bugFSD, bugNoFSD, crFSD, crNoFSD }: { bugFSD: nu
           <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
             <div className="flex items-center gap-2 text-indigo-400">
               <div className="w-2 h-2 bg-indigo-500 rounded-full" />
-              Dev Error (In FSD): {bugFSD}
+              Dev Error (Include FSD): {bugFSD}
             </div>
             <div className="flex items-center gap-2 text-rose-400">
-              PIC Error (No FSD): {bugNoFSD}
+              PIC Error (Not Include FSD): {bugNoFSD}
               <div className="w-2 h-2 bg-rose-500 rounded-full" />
             </div>
           </div>
@@ -2342,10 +2392,10 @@ function FSDGovernanceTracker({ bugFSD, bugNoFSD, crFSD, crNoFSD }: { bugFSD: nu
           <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
             <div className="flex items-center gap-2 text-emerald-400">
               <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-              Planned (In FSD): {crFSD}
+              Planned (Include FSD): {crFSD}
             </div>
             <div className="flex items-center gap-2 text-amber-400">
-              Ad-hoc (No FSD): {crNoFSD}
+              Ad-hoc (Not Include FSD): {crNoFSD}
               <div className="w-2 h-2 bg-amber-500 rounded-full" />
             </div>
           </div>

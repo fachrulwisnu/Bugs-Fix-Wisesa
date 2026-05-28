@@ -26,6 +26,8 @@ import { exportComprehensiveExcel } from "../lib/excelExport";
 interface ProjectTreeViewProps {
   bugs: BugRecord[];
   isCompact?: boolean;
+  filterType?: string;
+  setFilterType?: (type: string) => void;
 }
 
 export interface AdvancedProjectNode {
@@ -173,8 +175,8 @@ export function buildAdvancedProjectTree(bugsData: BugRecord[]): AdvancedProject
 
 export function exportToExcel(treeData: AdvancedProjectNode[]) {
   const tableData = treeData.map((node, index) => {
-    const hasFsd = node.fsdYaCount > 0 ? "Ada FSD" : "Tanpa FSD";
-    const detailFsd = `Ya: ${node.fsdYaCount}, Tidak: ${node.fsdTidakCount}`;
+    const hasFsd = node.fsdYaCount > 0 ? "Include FSD" : "Not Include FSD";
+    const detailFsd = `Include FSD: ${node.fsdYaCount}, Not Include FSD: ${node.fsdTidakCount}`;
     return {
       "No": index + 1,
       "Project Name": node.projectName,
@@ -209,7 +211,7 @@ export function exportToExcel(treeData: AdvancedProjectNode[]) {
   XLSX.writeFile(wb, `Wisesa_Project_Governance_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-export function ProjectTreeView({ bugs, isCompact = false }: ProjectTreeViewProps) {
+export function ProjectTreeView({ bugs, isCompact = false, filterType = "All", setFilterType }: ProjectTreeViewProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
   const [selectedProjectDetail, setSelectedProjectDetail] = useState<AdvancedProjectNode | null>(null);
@@ -241,7 +243,7 @@ export function ProjectTreeView({ bugs, isCompact = false }: ProjectTreeViewProp
   };
 
   const handleExport = () => {
-    exportComprehensiveExcel(bugs);
+    exportComprehensiveExcel(bugs, filterType);
   };
 
   const expandAll = () => {
@@ -289,7 +291,18 @@ export function ProjectTreeView({ bugs, isCompact = false }: ProjectTreeViewProp
         </div>
         
         {/* Actions Group */}
-        <div className="flex gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          {setFilterType && (
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="bg-white border border-gray-200 rounded-lg text-sm text-gray-750 focus:ring-blue-500 focus:border-blue-500 px-3 py-1.5 font-semibold outline-none h-10 cursor-pointer shadow-sm text-xs md:text-sm"
+            >
+              <option value="All">Lihat Semua (All)</option>
+              <option value="Bug">Hanya Bug</option>
+              <option value="CR">Hanya Change Request (CR)</option>
+            </select>
+          )}
           <button 
             onClick={handleExport}
             className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-100 rounded-xl text-xs font-semibold text-indigo-700 transition-all flex items-center gap-1.5 active:scale-95"
@@ -393,7 +406,7 @@ export function ProjectTreeView({ bugs, isCompact = false }: ProjectTreeViewProp
                           ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
                           : "bg-rose-50 text-rose-700 border-rose-100"
                       )}>
-                        {hasFsd ? "Ada FSD" : "Tanpa FSD"}
+                        {hasFsd ? "Include FSD" : "Not Include FSD"}
                       </span>
                     </div>
                     <button 
@@ -712,7 +725,7 @@ export function ProjectTreeView({ bugs, isCompact = false }: ProjectTreeViewProp
                       ? "text-emerald-700 bg-emerald-50 border-emerald-100" 
                       : "text-rose-700 bg-rose-50 border-rose-100"
                   )}>
-                    {selectedProjectDetail.fsdYaCount > 0 ? "Ada FSD" : "Tanpa FSD"}
+                    {selectedProjectDetail.fsdYaCount > 0 ? "Include FSD" : "Not Include FSD"}
                   </span>
                 </div>
                 <p className="text-xs text-gray-700 font-medium leading-relaxed">
@@ -724,10 +737,10 @@ export function ProjectTreeView({ bugs, isCompact = false }: ProjectTreeViewProp
                 {/* Specific counts details */}
                 <div className="mt-3.5 pt-3 border-t border-indigo-100/40 grid grid-cols-2 gap-2 text-center text-xs font-bold">
                   <div className="bg-emerald-50/40 border border-emerald-100/30 p-1.5 rounded-lg text-emerald-600">
-                    Ya: {selectedProjectDetail.fsdYaCount}
+                    Include FSD: {selectedProjectDetail.fsdYaCount}
                   </div>
                   <div className="bg-rose-50/40 border border-rose-100/30 p-1.5 rounded-lg text-rose-600">
-                    Tidak: {selectedProjectDetail.fsdTidakCount}
+                    Not Include FSD: {selectedProjectDetail.fsdTidakCount}
                   </div>
                 </div>
               </div>
